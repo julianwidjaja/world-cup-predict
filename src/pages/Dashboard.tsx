@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
 import { STAGE_LABELS, STAGE_POINTS, TOURNAMENT_WINNER_POINTS } from '../lib/constants'
-import type { Deadline, Match } from '../lib/types'
+import type { Deadline } from '../lib/types'
 
 export default function Dashboard() {
   const { profile, user } = useAuth()

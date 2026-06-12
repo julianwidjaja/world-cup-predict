@@ -3,7 +3,7 @@ import { useParams, Link } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
 import { STAGE_LABELS, getFlag } from '../lib/constants'
-import type { LeaderboardEntry, Group, Match, Deadline, MatchResult } from '../lib/types'
+import type { LeaderboardEntry, Group, Match, Deadline } from '../lib/types'
 import type { GroupPrediction } from '../components/MatchCard'
 
 export default function GroupDetail() {

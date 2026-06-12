@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { STAGE_LABELS, getFlag } from '../lib/constants'
-import type { Group, Match, MatchResult } from '../lib/types'
+import type { Group, Match } from '../lib/types'
 import type { GroupPrediction } from '../components/MatchCard'
 
 export default function PastPredictions() {
