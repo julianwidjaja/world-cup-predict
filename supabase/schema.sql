@@ -39,6 +39,8 @@ create table public.matches (
   away_team_resolved text,
   match_date timestamptz not null,
   venue text,
+  home_score int,
+  away_score int,
   result text check (result in ('home', 'away', 'draw')),
   is_completed boolean not null default false,
   created_at timestamptz not null default now()
@@ -49,6 +51,8 @@ create table public.predictions (
   user_id uuid not null references public.profiles(id) on delete cascade,
   match_id int not null references public.matches(id) on delete cascade,
   predicted_result text not null check (predicted_result in ('home', 'away', 'draw')),
+  predicted_home_score int,
+  predicted_away_score int,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
   unique(user_id, match_id)
@@ -277,7 +281,8 @@ returns table (
   display_name text,
   total_points int,
   correct_predictions int,
-  total_completed int
+  total_completed int,
+  exact_scores int
 )
 language sql
 stable
@@ -300,7 +305,10 @@ as $$
       p.user_id,
       pr.display_name,
       coalesce(sum(case when p.predicted_result = m.result then pv.points else 0 end), 0) as match_points,
-      count(case when p.predicted_result = m.result then 1 end) as correct_count
+      count(case when p.predicted_result = m.result then 1 end) as correct_count,
+      count(case when m.home_score is not null and m.away_score is not null
+                  and p.predicted_home_score = m.home_score
+                  and p.predicted_away_score = m.away_score then 1 end) as exact_count
     from public.group_members gm
     join public.profiles pr on pr.id = gm.user_id
     left join public.predictions p on p.user_id = gm.user_id
@@ -322,7 +330,8 @@ as $$
     coalesce(ms.display_name, pr2.display_name),
     (coalesce(ms.match_points, 0) + coalesce(wb.bonus, 0))::int,
     coalesce(ms.correct_count, 0)::int,
-    cc.cnt
+    cc.cnt,
+    coalesce(ms.exact_count, 0)::int
   from public.group_members gm2
   join public.profiles pr2 on pr2.id = gm2.user_id
   cross join completed_count cc

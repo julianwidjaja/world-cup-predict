@@ -48,7 +48,7 @@ export default function GroupDetail() {
 
       const { data: preds } = await supabase
         .from('predictions')
-        .select('match_id, predicted_result, user_id, profiles(display_name)')
+        .select('match_id, predicted_result, predicted_home_score, predicted_away_score, user_id, profiles(display_name)')
         .in('user_id', memberIds)
         .in('match_id', matchIds)
 
@@ -59,6 +59,8 @@ export default function GroupDetail() {
           grouped[p.match_id].push({
             display_name: p.profiles?.display_name || 'Unknown',
             predicted_result: p.predicted_result,
+            predicted_home_score: p.predicted_home_score,
+            predicted_away_score: p.predicted_away_score,
           })
         }
         setPredictions(grouped)
@@ -119,6 +121,7 @@ export default function GroupDetail() {
                 <th className="text-left text-xs font-medium text-slate-400 px-4 py-2 w-12">#</th>
                 <th className="text-left text-xs font-medium text-slate-400 px-4 py-2">Player</th>
                 <th className="text-right text-xs font-medium text-slate-400 px-4 py-2">Correct</th>
+                <th className="text-right text-xs font-medium text-slate-400 px-4 py-2">Exact</th>
                 <th className="text-right text-xs font-medium text-slate-400 px-4 py-2">Points</th>
               </tr>
             </thead>
@@ -143,6 +146,9 @@ export default function GroupDetail() {
                     <span className="text-sm text-slate-400">
                       {entry.correct_predictions}/{entry.total_completed}
                     </span>
+                  </td>
+                  <td className="px-4 py-2.5 text-right">
+                    <span className="text-sm text-purple-400">{entry.exact_scores}</span>
                   </td>
                   <td className="px-4 py-2.5 text-right">
                     <span className="text-sm font-bold text-white">{entry.total_points}</span>
@@ -205,16 +211,20 @@ export default function GroupDetail() {
                   <p className="text-xs text-slate-500 italic text-center">No predictions</p>
                 ) : (
                   <div className="space-y-1">
-                    {matchPreds.map((gp, i) => (
-                      <div key={i} className="flex items-center justify-between text-xs px-2 py-1.5 rounded bg-slate-700/50">
-                        <span className="text-slate-300">{gp.display_name}</span>
-                        <span className="text-slate-400">
-                          {gp.predicted_result === 'home' ? homeTeam
-                            : gp.predicted_result === 'away' ? awayTeam
-                            : 'Draw'}
-                        </span>
-                      </div>
-                    ))}
+                    {matchPreds.map((gp, i) => {
+                      const pick = gp.predicted_result === 'home' ? homeTeam
+                        : gp.predicted_result === 'away' ? awayTeam
+                        : 'Draw'
+                      const hasScore = gp.predicted_home_score != null && gp.predicted_away_score != null
+                      return (
+                        <div key={i} className="flex items-center justify-between text-xs px-2 py-1.5 rounded bg-slate-700/50">
+                          <span className="text-slate-300">{gp.display_name}</span>
+                          <span className="text-slate-400">
+                            {pick} {hasScore && <span className="text-slate-500">({gp.predicted_home_score}-{gp.predicted_away_score})</span>}
+                          </span>
+                        </div>
+                      )
+                    })}
                   </div>
                 )}
               </div>

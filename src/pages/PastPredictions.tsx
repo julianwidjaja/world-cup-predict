@@ -34,7 +34,7 @@ export default function PastPredictions() {
 
       const { data: preds } = await supabase
         .from('predictions')
-        .select('match_id, predicted_result, user_id, profiles(display_name)')
+        .select('match_id, predicted_result, predicted_home_score, predicted_away_score, user_id, profiles(display_name)')
         .in('user_id', memberIds)
         .in('match_id', matchIds)
 
@@ -45,6 +45,8 @@ export default function PastPredictions() {
           grouped[p.match_id].push({
             display_name: p.profiles?.display_name || 'Unknown',
             predicted_result: p.predicted_result,
+            predicted_home_score: p.predicted_home_score,
+            predicted_away_score: p.predicted_away_score,
           })
         }
         setPredictions(grouped)
@@ -139,6 +141,7 @@ export default function PastPredictions() {
                       const pickText = gp.predicted_result === 'home' ? homeTeam
                         : gp.predicted_result === 'away' ? awayTeam
                         : 'Draw'
+                      const hasScore = gp.predicted_home_score != null && gp.predicted_away_score != null
 
                       return (
                         <div key={i} className="flex items-center justify-between text-xs px-2 py-1.5 rounded bg-slate-700/50">
@@ -148,7 +151,7 @@ export default function PastPredictions() {
                               ? isCorrect ? 'text-green-400 font-medium' : 'text-red-400'
                               : 'text-slate-400'
                           }>
-                            {pickText}
+                            {pickText} {hasScore && <span className="opacity-75">({gp.predicted_home_score}-{gp.predicted_away_score})</span>}
                           </span>
                         </div>
                       )

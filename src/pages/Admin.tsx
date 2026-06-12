@@ -13,6 +13,7 @@ export default function Admin() {
   const [saving, setSaving] = useState<number | null>(null)
   const [winnerTeam, setWinnerTeam] = useState('')
   const [currentWinner, setCurrentWinner] = useState<string | null>(null)
+  const [matchScores, setMatchScores] = useState<Record<number, { home: string; away: string }>>({})
 
   useEffect(() => {
     loadData()
@@ -30,15 +31,24 @@ export default function Admin() {
 
   async function setResult(matchId: number, result: MatchResult) {
     setSaving(matchId)
+    const scoreInput = matchScores[matchId]
+    const homeScore = scoreInput?.home ? parseInt(scoreInput.home) : null
+    const awayScore = scoreInput?.away ? parseInt(scoreInput.away) : null
+
     const { error } = await supabase
       .from('matches')
-      .update({ result, is_completed: true })
+      .update({
+        result,
+        is_completed: true,
+        home_score: isNaN(homeScore as number) ? null : homeScore,
+        away_score: isNaN(awayScore as number) ? null : awayScore,
+      })
       .eq('id', matchId)
 
     if (!error) {
       await supabase.rpc('resolve_knockout_teams')
       setMatches(prev =>
-        prev.map(m => m.id === matchId ? { ...m, result, is_completed: true } : m)
+        prev.map(m => m.id === matchId ? { ...m, result, is_completed: true, home_score: homeScore, away_score: awayScore } : m)
       )
     } else {
       alert(error.message)
@@ -182,6 +192,37 @@ export default function Admin() {
                     {awayTeam} {getFlag(awayTeam)}
                   </span>
                 </div>
+
+                {!needsResolution && !match.is_completed && (
+                  <div className="flex items-center justify-center gap-2 mb-3">
+                    <span className="text-xs text-slate-400">Score:</span>
+                    <input
+                      type="number"
+                      min="0"
+                      placeholder={homeTeam}
+                      value={matchScores[match.id]?.home ?? (match.home_score?.toString() || '')}
+                      onChange={e => setMatchScores(s => ({ ...s, [match.id]: { home: e.target.value, away: s[match.id]?.away || '' } }))}
+                      className="w-14 text-center px-1 py-1 bg-slate-700 border border-slate-600 rounded text-white text-sm"
+                    />
+                    <span className="text-slate-500">-</span>
+                    <input
+                      type="number"
+                      min="0"
+                      placeholder={awayTeam}
+                      value={matchScores[match.id]?.away ?? (match.away_score?.toString() || '')}
+                      onChange={e => setMatchScores(s => ({ ...s, [match.id]: { home: s[match.id]?.home || '', away: e.target.value } }))}
+                      className="w-14 text-center px-1 py-1 bg-slate-700 border border-slate-600 rounded text-white text-sm"
+                    />
+                  </div>
+                )}
+
+                {match.is_completed && match.home_score != null && match.away_score != null && (
+                  <div className="text-center mb-3">
+                    <span className="text-xs text-amber-400">
+                      Score: {match.home_score} - {match.away_score}
+                    </span>
+                  </div>
+                )}
 
                 {needsResolution ? (
                   <div className="space-y-2">

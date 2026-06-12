@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef, useCallback } from 'react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
 import MatchCard from '../components/MatchCard'
@@ -7,17 +7,27 @@ import type { Match, MatchResult, Prediction, Deadline, Stage } from '../lib/typ
 
 const KNOCKOUT_STAGES: Stage[] = ['round_of_32', 'round_of_16', 'quarter_final', 'semi_final', 'third_place', 'final']
 
+interface ScorePrediction {
+  home: number | null
+  away: number | null
+}
+
 export default function KnockoutPredictions() {
   const { user } = useAuth()
   const [matches, setMatches] = useState<Match[]>([])
   const [predictions, setPredictions] = useState<Record<number, MatchResult>>({})
+  const [scores, setScores] = useState<Record<number, ScorePrediction>>({})
   const [deadlines, setDeadlines] = useState<Record<string, Date>>({})
   const [loading, setLoading] = useState(true)
   const [expandedStages, setExpandedStages] = useState<Set<string>>(new Set(KNOCKOUT_STAGES))
   const [savingMatch, setSavingMatch] = useState<number | null>(null)
+  const scoreTimers = useRef<Record<number, ReturnType<typeof setTimeout>>>({})
 
   useEffect(() => {
     loadData()
+    return () => {
+      Object.values(scoreTimers.current).forEach(clearTimeout)
+    }
   }, [user])
 
   async function loadData() {
@@ -39,10 +49,18 @@ export default function KnockoutPredictions() {
     if (matchesRes.data) setMatches(matchesRes.data)
     if (predictionsRes.data) {
       const predMap: Record<number, MatchResult> = {}
+      const scoreMap: Record<number, ScorePrediction> = {}
       predictionsRes.data.forEach((p: Prediction) => {
         predMap[p.match_id] = p.predicted_result
+        if (p.predicted_home_score != null || p.predicted_away_score != null) {
+          scoreMap[p.match_id] = {
+            home: p.predicted_home_score,
+            away: p.predicted_away_score,
+          }
+        }
       })
       setPredictions(predMap)
+      setScores(scoreMap)
     }
     if (deadlinesRes.data) {
       const dlMap: Record<string, Date> = {}
@@ -60,10 +78,17 @@ export default function KnockoutPredictions() {
     setPredictions(p => ({ ...p, [matchId]: result }))
     setSavingMatch(matchId)
 
+    const scoreData = scores[matchId]
     const { error } = await supabase
       .from('predictions')
       .upsert(
-        { user_id: user.id, match_id: matchId, predicted_result: result },
+        {
+          user_id: user.id,
+          match_id: matchId,
+          predicted_result: result,
+          predicted_home_score: scoreData?.home ?? null,
+          predicted_away_score: scoreData?.away ?? null,
+        },
         { onConflict: 'user_id,match_id' }
       )
 
@@ -80,6 +105,28 @@ export default function KnockoutPredictions() {
       alert(error.message)
     }
     setSavingMatch(null)
+  }
+
+  const saveScore = useCallback(async (matchId: number, home: number | null, away: number | null) => {
+    if (!user || !predictions[matchId]) return
+    await supabase
+      .from('predictions')
+      .upsert(
+        {
+          user_id: user.id,
+          match_id: matchId,
+          predicted_result: predictions[matchId],
+          predicted_home_score: home,
+          predicted_away_score: away,
+        },
+        { onConflict: 'user_id,match_id' }
+      )
+  }, [user, predictions])
+
+  function handleScoreChange(matchId: number, home: number | null, away: number | null) {
+    setScores(s => ({ ...s, [matchId]: { home, away } }))
+    if (scoreTimers.current[matchId]) clearTimeout(scoreTimers.current[matchId])
+    scoreTimers.current[matchId] = setTimeout(() => saveScore(matchId, home, away), 800)
   }
 
   function toggleStage(stage: string) {
@@ -146,7 +193,9 @@ export default function KnockoutPredictions() {
                       key={match.id}
                       match={match}
                       prediction={predictions[match.id] || null}
+                      predictedScore={scores[match.id]}
                       onPredict={handlePredict}
+                      onPredictScore={handleScoreChange}
                       disabled={isPast || match.is_completed || savingMatch === match.id}
                       showResult
                     />

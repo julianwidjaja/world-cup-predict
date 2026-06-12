@@ -20,6 +20,8 @@ export interface Match {
   away_team_resolved: string | null
   match_date: string
   venue: string | null
+  home_score: number | null
+  away_score: number | null
   result: MatchResult | null
   is_completed: boolean
 }
@@ -29,6 +31,8 @@ export interface Prediction {
   user_id: string
   match_id: number
   predicted_result: MatchResult
+  predicted_home_score: number | null
+  predicted_away_score: number | null
   created_at: string
   updated_at: string
 }
@@ -69,6 +73,7 @@ export interface LeaderboardEntry {
   total_points: number
   correct_predictions: number
   total_completed: number
+  exact_scores: number
 }
 
 export interface Deadline {
