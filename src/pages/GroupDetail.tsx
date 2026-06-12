@@ -6,6 +6,18 @@ import { STAGE_LABELS, getFlag } from '../lib/constants'
 import type { LeaderboardEntry, Group, Match, Deadline } from '../lib/types'
 import type { GroupPrediction } from '../components/MatchCard'
 
+function startOfToday(): Date {
+  const d = new Date()
+  d.setHours(0, 0, 0, 0)
+  return d
+}
+
+function startOfTomorrow(): Date {
+  const d = startOfToday()
+  d.setDate(d.getDate() + 1)
+  return d
+}
+
 export default function GroupDetail() {
   const { groupId } = useParams<{ groupId: string }>()
   const { user } = useAuth()
@@ -21,12 +33,12 @@ export default function GroupDetail() {
   }, [groupId])
 
   async function loadData() {
-    const now = new Date().toISOString()
+    const todayStart = startOfToday().toISOString()
 
     const [groupRes, leaderboardRes, matchesRes, deadlinesRes, membersRes] = await Promise.all([
       supabase.from('groups').select('*').eq('id', groupId!).single(),
       supabase.rpc('get_leaderboard', { p_group_id: groupId }),
-      supabase.from('matches').select('*').gte('match_date', now).order('match_date'),
+      supabase.from('matches').select('*').gte('match_date', todayStart).order('match_date'),
       supabase.from('deadlines').select('*'),
       supabase.from('group_members').select('user_id').eq('group_id', groupId!),
     ])
@@ -75,6 +87,10 @@ export default function GroupDetail() {
     return dl ? new Date() > dl : false
   }
 
+  const tomorrow = startOfTomorrow()
+  const todayMatches = matches.filter(m => new Date(m.match_date) < tomorrow)
+  const upcomingMatches = matches.filter(m => new Date(m.match_date) >= tomorrow)
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-20">
@@ -87,6 +103,81 @@ export default function GroupDetail() {
     return (
       <div className="flex items-center justify-center py-20">
         <p className="text-slate-400">Group not found.</p>
+      </div>
+    )
+  }
+
+  function renderMatch(match: Match) {
+    const homeTeam = match.home_team_resolved || match.home_team
+    const awayTeam = match.away_team_resolved || match.away_team
+    const matchDate = new Date(match.match_date)
+    const deadlinePassed = isDeadlinePassed(match.stage)
+    const matchPreds = predictions[match.id] || []
+    const isKnockout = match.stage !== 'group'
+    const isTBD = isKnockout && (!match.home_team_resolved || !match.away_team_resolved)
+    const hasResult = match.is_completed && match.home_score != null && match.away_score != null
+
+    return (
+      <div key={match.id} className="bg-slate-800 rounded-xl p-4">
+        <div className="flex items-center justify-between mb-2">
+          <span className="text-xs text-slate-400">
+            {STAGE_LABELS[match.stage as keyof typeof STAGE_LABELS]}
+            {match.group_label && ` | Group ${match.group_label}`}
+          </span>
+          <span className="text-xs text-slate-500">
+            {matchDate.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}
+          </span>
+        </div>
+
+        <div className="flex items-center justify-between gap-2 mb-2">
+          <div className="flex-1 text-right">
+            <span className="text-sm font-medium text-white">
+              {getFlag(homeTeam)} {homeTeam}
+            </span>
+          </div>
+          {hasResult ? (
+            <span className="text-sm font-bold text-amber-400 px-2">
+              {match.home_score} - {match.away_score}
+            </span>
+          ) : (
+            <span className="text-xs text-slate-500 font-medium px-2">vs</span>
+          )}
+          <div className="flex-1 text-left">
+            <span className="text-sm font-medium text-white">
+              {awayTeam} {getFlag(awayTeam)}
+            </span>
+          </div>
+        </div>
+
+        {isTBD ? (
+          <p className="text-xs text-slate-500 italic text-center">Teams TBD</p>
+        ) : !deadlinePassed ? (
+          <p className="text-xs text-slate-500 italic text-center">Predictions hidden until deadline</p>
+        ) : matchPreds.length === 0 ? (
+          <p className="text-xs text-slate-500 italic text-center">No predictions</p>
+        ) : (
+          <div className="space-y-1">
+            {matchPreds.map((gp, i) => {
+              const pick = gp.predicted_result === 'home' ? homeTeam
+                : gp.predicted_result === 'away' ? awayTeam
+                : 'Draw'
+              const hasScore = gp.predicted_home_score != null && gp.predicted_away_score != null
+              const isCorrect = match.is_completed && gp.predicted_result === match.result
+              return (
+                <div key={i} className="flex items-center justify-between text-xs px-2 py-1.5 rounded bg-slate-700/50">
+                  <span className="text-slate-300">{gp.display_name}</span>
+                  <span className={
+                    match.is_completed
+                      ? isCorrect ? 'text-green-400 font-medium' : 'text-red-400'
+                      : 'text-slate-400'
+                  }>
+                    {pick} {hasScore && <span className="opacity-75">({gp.predicted_home_score}-{gp.predicted_away_score})</span>}
+                  </span>
+                </div>
+              )
+            })}
+          </div>
+        )}
       </div>
     )
   }
@@ -160,77 +251,28 @@ export default function GroupDetail() {
         )}
       </div>
 
+      {/* Today's Matches */}
+      {todayMatches.length > 0 && (
+        <>
+          <h2 className="text-lg font-semibold text-white mb-3">Today</h2>
+          <div className="space-y-3 mb-6">
+            {todayMatches.map(renderMatch)}
+          </div>
+        </>
+      )}
+
       {/* Upcoming Matches */}
-      <h2 className="text-lg font-semibold text-white mb-3">Upcoming Matches</h2>
-      {matches.length === 0 ? (
+      {upcomingMatches.length > 0 && (
+        <>
+          <h2 className="text-lg font-semibold text-white mb-3">Upcoming</h2>
+          <div className="space-y-3">
+            {upcomingMatches.map(renderMatch)}
+          </div>
+        </>
+      )}
+
+      {todayMatches.length === 0 && upcomingMatches.length === 0 && (
         <p className="text-slate-400 text-sm">No upcoming matches.</p>
-      ) : (
-        <div className="space-y-3">
-          {matches.map(match => {
-            const homeTeam = match.home_team_resolved || match.home_team
-            const awayTeam = match.away_team_resolved || match.away_team
-            const matchDate = new Date(match.match_date)
-            const deadlinePassed = isDeadlinePassed(match.stage)
-            const matchPreds = predictions[match.id] || []
-            const isKnockout = match.stage !== 'group'
-            const isTBD = isKnockout && (!match.home_team_resolved || !match.away_team_resolved)
-
-            return (
-              <div key={match.id} className="bg-slate-800 rounded-xl p-4">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-xs text-slate-400">
-                    {STAGE_LABELS[match.stage as keyof typeof STAGE_LABELS]}
-                    {match.group_label && ` | Group ${match.group_label}`}
-                  </span>
-                  <span className="text-xs text-slate-500">
-                    {matchDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-                    {' '}
-                    {matchDate.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}
-                  </span>
-                </div>
-
-                <div className="flex items-center justify-between gap-2 mb-3">
-                  <div className="flex-1 text-right">
-                    <span className="text-sm font-medium text-white">
-                      {getFlag(homeTeam)} {homeTeam}
-                    </span>
-                  </div>
-                  <span className="text-xs text-slate-500 font-medium px-2">vs</span>
-                  <div className="flex-1 text-left">
-                    <span className="text-sm font-medium text-white">
-                      {awayTeam} {getFlag(awayTeam)}
-                    </span>
-                  </div>
-                </div>
-
-                {isTBD ? (
-                  <p className="text-xs text-slate-500 italic text-center">Teams TBD</p>
-                ) : !deadlinePassed ? (
-                  <p className="text-xs text-slate-500 italic text-center">Predictions hidden until deadline</p>
-                ) : matchPreds.length === 0 ? (
-                  <p className="text-xs text-slate-500 italic text-center">No predictions</p>
-                ) : (
-                  <div className="space-y-1">
-                    {matchPreds.map((gp, i) => {
-                      const pick = gp.predicted_result === 'home' ? homeTeam
-                        : gp.predicted_result === 'away' ? awayTeam
-                        : 'Draw'
-                      const hasScore = gp.predicted_home_score != null && gp.predicted_away_score != null
-                      return (
-                        <div key={i} className="flex items-center justify-between text-xs px-2 py-1.5 rounded bg-slate-700/50">
-                          <span className="text-slate-300">{gp.display_name}</span>
-                          <span className="text-slate-400">
-                            {pick} {hasScore && <span className="text-slate-500">({gp.predicted_home_score}-{gp.predicted_away_score})</span>}
-                          </span>
-                        </div>
-                      )
-                    })}
-                  </div>
-                )}
-              </div>
-            )
-          })}
-        </div>
       )}
     </div>
   )

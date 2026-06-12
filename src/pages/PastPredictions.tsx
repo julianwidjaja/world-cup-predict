@@ -17,11 +17,12 @@ export default function PastPredictions() {
   }, [groupId])
 
   async function loadData() {
-    const now = new Date().toISOString()
+    const todayStart = new Date()
+    todayStart.setHours(0, 0, 0, 0)
 
     const [groupRes, matchesRes, membersRes] = await Promise.all([
       supabase.from('groups').select('*').eq('id', groupId!).single(),
-      supabase.from('matches').select('*').lt('match_date', now).order('match_date', { ascending: false }),
+      supabase.from('matches').select('*').lt('match_date', todayStart.toISOString()).order('match_date', { ascending: false }),
       supabase.from('group_members').select('user_id').eq('group_id', groupId!),
     ])
 
