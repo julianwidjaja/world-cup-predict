@@ -9,7 +9,8 @@ import GroupStagePredictions from './pages/GroupStagePredictions'
 import KnockoutPredictions from './pages/KnockoutPredictions'
 import WinnerPrediction from './pages/WinnerPrediction'
 import Groups from './pages/Groups'
-import Leaderboard from './pages/Leaderboard'
+import GroupDetail from './pages/GroupDetail'
+import PastPredictions from './pages/PastPredictions'
 import Admin from './pages/Admin'
 
 function AppLayout({ children }: { children: React.ReactNode }) {
@@ -41,8 +42,8 @@ function AppRoutes() {
       <Route path="/predictions/knockout" element={<ProtectedRoute><AppLayout><KnockoutPredictions /></AppLayout></ProtectedRoute>} />
       <Route path="/predictions/winner" element={<ProtectedRoute><AppLayout><WinnerPrediction /></AppLayout></ProtectedRoute>} />
       <Route path="/groups" element={<ProtectedRoute><AppLayout><Groups /></AppLayout></ProtectedRoute>} />
-      <Route path="/leaderboard" element={<ProtectedRoute><AppLayout><Leaderboard /></AppLayout></ProtectedRoute>} />
-      <Route path="/leaderboard/:groupId" element={<ProtectedRoute><AppLayout><Leaderboard /></AppLayout></ProtectedRoute>} />
+      <Route path="/groups/:groupId" element={<ProtectedRoute><AppLayout><GroupDetail /></AppLayout></ProtectedRoute>} />
+      <Route path="/groups/:groupId/past" element={<ProtectedRoute><AppLayout><PastPredictions /></AppLayout></ProtectedRoute>} />
       <Route path="/admin" element={<ProtectedRoute><AppLayout><Admin /></AppLayout></ProtectedRoute>} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

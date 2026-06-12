@@ -199,10 +199,10 @@ export default function Groups() {
               <div className="flex items-center justify-between mb-2">
                 <h3 className="text-white font-semibold">{group.name}</h3>
                 <Link
-                  to={`/leaderboard/${group.id}`}
+                  to={`/groups/${group.id}`}
                   className="text-sm text-emerald-400 hover:text-emerald-300"
                 >
-                  Leaderboard
+                  View Details
                 </Link>
               </div>
               <div className="flex items-center gap-2 mb-2">

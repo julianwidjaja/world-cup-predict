@@ -131,11 +131,11 @@ export default function Dashboard() {
             {groups.map(g => (
               <Link
                 key={g.id}
-                to={`/leaderboard/${g.id}`}
+                to={`/groups/${g.id}`}
                 className="flex items-center justify-between bg-slate-800 rounded-xl p-4 hover:bg-slate-750 transition-colors"
               >
                 <span className="text-white font-medium">{g.name}</span>
-                <span className="text-sm text-emerald-400">View Leaderboard</span>
+                <span className="text-sm text-emerald-400">View Group</span>
               </Link>
             ))}
           </div>

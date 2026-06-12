@@ -277,7 +277,7 @@ returns table (
   display_name text,
   total_points int,
   correct_predictions int,
-  total_predictions int
+  total_completed int
 )
 language sql
 stable
@@ -292,13 +292,15 @@ as $$
       ('third_place', 175),
       ('final', 175)
   ),
+  completed_count as (
+    select count(*)::int as cnt from public.matches where is_completed = true
+  ),
   match_scores as (
     select
       p.user_id,
       pr.display_name,
       coalesce(sum(case when p.predicted_result = m.result then pv.points else 0 end), 0) as match_points,
-      count(case when p.predicted_result = m.result then 1 end) as correct_count,
-      count(p.id) as total_count
+      count(case when p.predicted_result = m.result then 1 end) as correct_count
     from public.group_members gm
     join public.profiles pr on pr.id = gm.user_id
     left join public.predictions p on p.user_id = gm.user_id
@@ -320,9 +322,10 @@ as $$
     coalesce(ms.display_name, pr2.display_name),
     (coalesce(ms.match_points, 0) + coalesce(wb.bonus, 0))::int,
     coalesce(ms.correct_count, 0)::int,
-    coalesce(ms.total_count, 0)::int
+    cc.cnt
   from public.group_members gm2
   join public.profiles pr2 on pr2.id = gm2.user_id
+  cross join completed_count cc
   left join match_scores ms on ms.user_id = gm2.user_id
   left join winner_bonus wb on wb.user_id = gm2.user_id
   where gm2.group_id = p_group_id

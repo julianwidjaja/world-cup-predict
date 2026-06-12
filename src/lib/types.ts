@@ -68,7 +68,7 @@ export interface LeaderboardEntry {
   display_name: string
   total_points: number
   correct_predictions: number
-  total_predictions: number
+  total_completed: number
 }
 
 export interface Deadline {

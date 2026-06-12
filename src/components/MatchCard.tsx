@@ -1,5 +1,11 @@
+import { useState } from 'react'
 import { getFlag } from '../lib/constants'
 import type { Match, MatchResult } from '../lib/types'
+
+export interface GroupPrediction {
+  display_name: string
+  predicted_result: MatchResult
+}
 
 interface MatchCardProps {
   match: Match
@@ -7,9 +13,11 @@ interface MatchCardProps {
   onPredict: (matchId: number, result: MatchResult) => void
   disabled: boolean
   showResult?: boolean
+  groupPredictions?: GroupPrediction[]
 }
 
-export default function MatchCard({ match, prediction, onPredict, disabled, showResult }: MatchCardProps) {
+export default function MatchCard({ match, prediction, onPredict, disabled, showResult, groupPredictions }: MatchCardProps) {
+  const [showOthers, setShowOthers] = useState(false)
   const homeTeam = match.home_team_resolved || match.home_team
   const awayTeam = match.away_team_resolved || match.away_team
   const isKnockout = match.stage !== 'group'
@@ -23,7 +31,14 @@ export default function MatchCard({ match, prediction, onPredict, disabled, show
     return 'Draw'
   }
 
+  function pickLabel(result: MatchResult): string {
+    if (result === 'home') return homeTeam
+    if (result === 'away') return awayTeam
+    return 'Draw'
+  }
+
   const isCorrect = match.is_completed && prediction === match.result
+  const hasPredictions = groupPredictions && groupPredictions.length > 0
 
   return (
     <div className={`bg-slate-700/50 rounded-lg p-3 ${match.is_completed ? 'border border-slate-600' : ''}`}>
@@ -121,6 +136,42 @@ export default function MatchCard({ match, prediction, onPredict, disabled, show
           <span className="text-xs text-emerald-400">
             Your pick: {prediction === 'home' ? homeTeam : prediction === 'away' ? awayTeam : 'Draw'}
           </span>
+        </div>
+      )}
+
+      {hasPredictions && (
+        <div className="mt-2">
+          <button
+            onClick={() => setShowOthers(!showOthers)}
+            className="text-xs text-slate-400 hover:text-slate-300 flex items-center gap-1"
+          >
+            <svg
+              className={`w-3 h-3 transition-transform ${showOthers ? 'rotate-90' : ''}`}
+              fill="none" stroke="currentColor" viewBox="0 0 24 24"
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+            </svg>
+            {groupPredictions!.length} prediction{groupPredictions!.length !== 1 ? 's' : ''}
+          </button>
+          {showOthers && (
+            <div className="mt-1.5 space-y-0.5">
+              {groupPredictions!.map((gp, i) => {
+                const isGpCorrect = match.is_completed && gp.predicted_result === match.result
+                return (
+                  <div key={i} className="flex items-center justify-between text-xs px-2 py-1 rounded bg-slate-600/30">
+                    <span className="text-slate-300">{gp.display_name}</span>
+                    <span className={
+                      match.is_completed
+                        ? isGpCorrect ? 'text-green-400' : 'text-red-400'
+                        : 'text-slate-400'
+                    }>
+                      {pickLabel(gp.predicted_result)}
+                    </span>
+                  </div>
+                )
+              })}
+            </div>
+          )}
         </div>
       )}
     </div>

@@ -7,7 +7,7 @@ const navLinks = [
   { to: '/predictions/group', label: 'Group Stage' },
   { to: '/predictions/knockout', label: 'Knockout' },
   { to: '/predictions/winner', label: 'Winner' },
-  { to: '/groups', label: 'Groups' },
+  { to: '/groups', label: 'My Groups' },
 ]
 
 export default function Navbar() {

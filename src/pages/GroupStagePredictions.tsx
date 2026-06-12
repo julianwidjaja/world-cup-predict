@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
 import MatchCard from '../components/MatchCard'
-import type { Match, MatchResult, Prediction, Deadline } from '../lib/types'
+import type { Match, MatchResult, Prediction } from '../lib/types'
 
 const GROUPS = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L']
 
