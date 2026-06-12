@@ -4,15 +4,16 @@ import { useAuth } from '../context/AuthContext'
 import { getFlag } from '../lib/constants'
 
 const TEAMS_2026 = [
-  'Albania', 'Argentina', 'Australia', 'Austria', 'Belgium', 'Bolivia', 'Brazil',
-  'Cameroon', 'Canada', 'Chile', 'Colombia', 'Costa Rica', 'Croatia', 'Czech Republic',
-  'Denmark', 'DR Congo', 'Ecuador', 'Egypt', 'England', 'Finland', 'France',
-  'Georgia', 'Germany', 'Honduras', 'Hungary', 'Indonesia', 'Iran', 'Italy',
-  'Jamaica', 'Japan', 'Mexico', 'Morocco', 'Netherlands', 'New Zealand', 'Nigeria',
-  'Norway', 'Panama', 'Paraguay', 'Peru', 'Poland', 'Portugal', 'Qatar',
-  'Romania', 'Saudi Arabia', 'Senegal', 'Serbia', 'Slovenia', 'South Africa',
-  'South Korea', 'Spain', 'Switzerland', 'Türkiye', 'Ukraine', 'United States',
-  'Uruguay', 'Uzbekistan', 'Venezuela', 'Wales',
+  'Algeria', 'Argentina', 'Australia', 'Austria', 'Belgium',
+  'Bosnia & Herzegovina', 'Brazil', 'Canada', 'Cape Verde', 'Colombia',
+  'Croatia', 'Curaçao', 'Czech Republic', 'DR Congo', 'Ecuador',
+  'Egypt', 'England', 'France', 'Germany', 'Ghana',
+  'Haiti', 'Iran', 'Iraq', 'Ivory Coast', 'Japan',
+  'Jordan', 'Mexico', 'Morocco', 'Netherlands', 'New Zealand',
+  'Norway', 'Panama', 'Paraguay', 'Portugal', 'Qatar',
+  'Saudi Arabia', 'Scotland', 'Senegal', 'South Africa', 'South Korea',
+  'Spain', 'Sweden', 'Switzerland', 'Tunisia', 'Turkey',
+  'Uruguay', 'USA', 'Uzbekistan',
 ].sort()
 
 export default function WinnerPrediction() {
