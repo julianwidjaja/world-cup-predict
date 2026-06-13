@@ -1,8 +1,22 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef, useCallback } from 'react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
 import { STAGE_LABELS, STAGE_ORDER, getFlag } from '../lib/constants'
 import type { Match, MatchResult, Stage } from '../lib/types'
+
+const DATA_URL = 'https://raw.githubusercontent.com/openfootball/worldcup.json/master/2026/worldcup.json'
+const FETCH_INTERVAL = 10 * 60 * 1000 // 10 minutes
+
+interface OpenFootballMatch {
+  round: string
+  date: string
+  time: string
+  team1: string
+  team2: string
+  score?: { ft: [number, number] }
+  group?: string
+  num?: number
+}
 
 export default function Admin() {
   const { profile } = useAuth()
@@ -14,10 +28,28 @@ export default function Admin() {
   const [winnerTeam, setWinnerTeam] = useState('')
   const [currentWinner, setCurrentWinner] = useState<string | null>(null)
   const [matchScores, setMatchScores] = useState<Record<number, { home: string; away: string }>>({})
+  const [fetching, setFetching] = useState(false)
+  const [fetchLog, setFetchLog] = useState<string[]>([])
+  const [autoFetch, setAutoFetch] = useState(false)
+  const [lastFetch, setLastFetch] = useState<Date | null>(null)
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
   useEffect(() => {
     loadData()
   }, [])
+
+  useEffect(() => {
+    if (autoFetch) {
+      fetchResults()
+      timerRef.current = setInterval(fetchResults, FETCH_INTERVAL)
+    } else if (timerRef.current) {
+      clearInterval(timerRef.current)
+      timerRef.current = null
+    }
+    return () => {
+      if (timerRef.current) clearInterval(timerRef.current)
+    }
+  }, [autoFetch])
 
   async function loadData() {
     const [matchesRes, winnerRes] = await Promise.all([
@@ -27,6 +59,91 @@ export default function Admin() {
     if (matchesRes.data) setMatches(matchesRes.data)
     if (winnerRes.data) setCurrentWinner(winnerRes.data.team)
     setLoading(false)
+  }
+
+  async function fetchResults() {
+    setFetching(true)
+    const log: string[] = []
+
+    try {
+      const res = await fetch(DATA_URL)
+      const data = await res.json()
+      const apiMatches: OpenFootballMatch[] = data.matches
+
+      const { data: dbMatches } = await supabase
+        .from('matches')
+        .select('*')
+        .eq('is_completed', false)
+        .order('match_date')
+
+      if (!dbMatches || dbMatches.length === 0) {
+        log.push('No pending matches in database')
+        setFetchLog(log)
+        setFetching(false)
+        setLastFetch(new Date())
+        return
+      }
+
+      let updated = 0
+
+      for (const dbMatch of dbMatches) {
+        const homeTeam = dbMatch.home_team_resolved || dbMatch.home_team
+        const awayTeam = dbMatch.away_team_resolved || dbMatch.away_team
+
+        // Skip knockout matches with unresolved teams
+        if (dbMatch.stage !== 'group' && (!dbMatch.home_team_resolved || !dbMatch.away_team_resolved)) {
+          continue
+        }
+
+        const apiMatch = apiMatches.find(am =>
+          am.team1 === homeTeam && am.team2 === awayTeam && am.score?.ft
+        )
+
+        if (!apiMatch || !apiMatch.score?.ft) continue
+
+        const [homeScore, awayScore] = apiMatch.score.ft
+        let result: MatchResult
+        if (homeScore > awayScore) result = 'home'
+        else if (awayScore > homeScore) result = 'away'
+        else result = 'draw'
+
+        const { error } = await supabase
+          .from('matches')
+          .update({
+            result,
+            is_completed: true,
+            home_score: homeScore,
+            away_score: awayScore,
+          })
+          .eq('id', dbMatch.id)
+
+        if (!error) {
+          log.push(`${homeTeam} ${homeScore}-${awayScore} ${awayTeam}`)
+          updated++
+          setMatches(prev =>
+            prev.map(m => m.id === dbMatch.id
+              ? { ...m, result, is_completed: true, home_score: homeScore, away_score: awayScore }
+              : m
+            )
+          )
+        } else {
+          log.push(`Error updating ${homeTeam} vs ${awayTeam}: ${error.message}`)
+        }
+      }
+
+      if (updated > 0) {
+        await supabase.rpc('resolve_knockout_teams')
+        log.push(`Updated ${updated} match(es). Knockout teams resolved.`)
+      } else {
+        log.push('No new results found')
+      }
+    } catch (err) {
+      log.push(`Fetch error: ${err}`)
+    }
+
+    setFetchLog(log)
+    setFetching(false)
+    setLastFetch(new Date())
   }
 
   async function setResult(matchId: number, result: MatchResult) {
@@ -60,12 +177,12 @@ export default function Admin() {
     setSaving(matchId)
     const { error } = await supabase
       .from('matches')
-      .update({ result: null, is_completed: false })
+      .update({ result: null, is_completed: false, home_score: null, away_score: null })
       .eq('id', matchId)
 
     if (!error) {
       setMatches(prev =>
-        prev.map(m => m.id === matchId ? { ...m, result: null, is_completed: false } : m)
+        prev.map(m => m.id === matchId ? { ...m, result: null, is_completed: false, home_score: null, away_score: null } : m)
       )
     } else {
       alert(error.message)
@@ -126,6 +243,44 @@ export default function Admin() {
   return (
     <div className="max-w-4xl mx-auto px-4 py-6">
       <h1 className="text-2xl font-bold text-white mb-6">Admin Panel</h1>
+
+      {/* Auto-fetch results */}
+      <div className="bg-slate-800 rounded-xl p-4 mb-6">
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="text-lg font-semibold text-white">Fetch Results</h2>
+          <div className="flex items-center gap-3">
+            <label className="flex items-center gap-2 text-sm text-slate-400">
+              <input
+                type="checkbox"
+                checked={autoFetch}
+                onChange={e => setAutoFetch(e.target.checked)}
+                className="rounded"
+              />
+              Auto (every 10 min)
+            </label>
+            <button
+              onClick={fetchResults}
+              disabled={fetching}
+              className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 disabled:bg-emerald-800 disabled:cursor-not-allowed text-white text-sm font-medium rounded-lg transition-colors"
+            >
+              {fetching ? 'Fetching...' : 'Fetch Now'}
+            </button>
+          </div>
+        </div>
+        {lastFetch && (
+          <p className="text-xs text-slate-500 mb-2">
+            Last checked: {lastFetch.toLocaleTimeString()}
+            {autoFetch && ' (next check in 10 min)'}
+          </p>
+        )}
+        {fetchLog.length > 0 && (
+          <div className="bg-slate-700/50 rounded-lg p-2 space-y-0.5">
+            {fetchLog.map((line, i) => (
+              <p key={i} className="text-xs text-slate-300">{line}</p>
+            ))}
+          </div>
+        )}
+      </div>
 
       {/* Stage selector */}
       <div className="flex flex-wrap gap-1.5 mb-4">
