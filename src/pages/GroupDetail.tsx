@@ -220,10 +220,11 @@ export default function GroupDetail() {
       {/* Leaderboard */}
       <div className="bg-slate-800 rounded-xl overflow-hidden mb-8">
         <h2 className="text-lg font-semibold text-white px-4 pt-4 pb-2">Leaderboard</h2>
+        <div className="overflow-x-auto">
         {entries.length === 0 ? (
           <p className="text-slate-400 text-sm px-4 pb-4">No predictions yet.</p>
         ) : (
-          <table className="w-full">
+          <table className="w-full whitespace-nowrap">
             <thead>
               <tr className="border-b border-slate-700">
                 <th className="text-left text-xs font-medium text-slate-400 px-4 py-2 w-12">#</th>
@@ -278,6 +279,7 @@ export default function GroupDetail() {
             </tbody>
           </table>
         )}
+        </div>
       </div>
 
       {/* Today's Matches */}
