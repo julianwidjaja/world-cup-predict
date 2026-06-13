@@ -26,6 +26,7 @@ export default function GroupDetail() {
   const [matches, setMatches] = useState<Match[]>([])
   const [deadlines, setDeadlines] = useState<Record<string, Date>>({})
   const [predictions, setPredictions] = useState<Record<number, GroupPrediction[]>>({})
+  const [winnerPicks, setWinnerPicks] = useState<Record<string, string>>({})
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -52,6 +53,21 @@ export default function GroupDetail() {
         dlMap[d.stage] = new Date(d.deadline_time)
       })
       setDeadlines(dlMap)
+    }
+
+    if (membersRes.data && membersRes.data.length > 0) {
+      const memberIds = membersRes.data.map(m => m.user_id)
+
+      const { data: wPreds } = await supabase
+        .from('winner_predictions')
+        .select('user_id, predicted_team')
+        .in('user_id', memberIds)
+
+      if (wPreds) {
+        const wMap: Record<string, string> = {}
+        for (const wp of wPreds) wMap[wp.user_id] = wp.predicted_team
+        setWinnerPicks(wMap)
+      }
     }
 
     if (membersRes.data && matchesRes.data && matchesRes.data.length > 0) {
@@ -90,6 +106,7 @@ export default function GroupDetail() {
   const tomorrow = startOfTomorrow()
   const todayMatches = matches.filter(m => new Date(m.match_date) < tomorrow)
   const upcomingMatches = matches.filter(m => new Date(m.match_date) >= tomorrow)
+  const winnerDeadlinePassed = true
 
   if (loading) {
     return (
@@ -213,6 +230,9 @@ export default function GroupDetail() {
                 <th className="text-left text-xs font-medium text-slate-400 px-4 py-2">Player</th>
                 <th className="text-right text-xs font-medium text-slate-400 px-4 py-2">Correct</th>
                 <th className="text-right text-xs font-medium text-slate-400 px-4 py-2">Exact</th>
+                {winnerDeadlinePassed && (
+                  <th className="text-right text-xs font-medium text-slate-400 px-4 py-2">Winner Pick</th>
+                )}
                 <th className="text-right text-xs font-medium text-slate-400 px-4 py-2">Points</th>
               </tr>
             </thead>
@@ -241,6 +261,15 @@ export default function GroupDetail() {
                   <td className="px-4 py-2.5 text-right">
                     <span className="text-sm text-purple-400">{entry.exact_scores}</span>
                   </td>
+                  {winnerDeadlinePassed && (
+                    <td className="px-4 py-2.5 text-right">
+                      <span className="text-sm text-amber-400">
+                        {winnerPicks[entry.user_id]
+                          ? `${getFlag(winnerPicks[entry.user_id])} ${winnerPicks[entry.user_id]}`
+                          : '-'}
+                      </span>
+                    </td>
+                  )}
                   <td className="px-4 py-2.5 text-right">
                     <span className="text-sm font-bold text-white">{entry.total_points}</span>
                   </td>
