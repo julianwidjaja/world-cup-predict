@@ -219,16 +219,10 @@ as $$
 declare
   v_stage text;
   v_deadline timestamptz;
-  v_resolved boolean;
 begin
-  select stage,
-         (stage = 'group' or (home_team_resolved is not null and away_team_resolved is not null))
-    into v_stage, v_resolved
+  select stage
+    into v_stage
     from public.matches where id = new.match_id;
-
-  if not v_resolved then
-    raise exception 'Cannot predict knockout match until teams are determined';
-  end if;
 
   select deadline_time into v_deadline
     from public.deadlines where stage = v_stage;

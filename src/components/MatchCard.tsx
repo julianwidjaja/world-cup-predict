@@ -25,7 +25,6 @@ export default function MatchCard({ match, prediction, predictedScore, onPredict
   const homeTeam = match.home_team_resolved || match.home_team
   const awayTeam = match.away_team_resolved || match.away_team
   const isKnockout = match.stage !== 'group'
-  const isTBD = isKnockout && (!match.home_team_resolved || !match.away_team_resolved)
   const matchDate = new Date(match.match_date)
 
   function getResultLabel(): string | null {
@@ -96,11 +95,7 @@ export default function MatchCard({ match, prediction, predictedScore, onPredict
         </div>
       )}
 
-      {isTBD ? (
-        <div className="text-center">
-          <span className="text-xs text-slate-500 italic">Teams TBD</span>
-        </div>
-      ) : (
+      {(
         <>
           <div className="flex gap-1.5">
             <button
