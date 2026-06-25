@@ -85,23 +85,51 @@ export default function Admin() {
       }
 
       let updated = 0
+      let resolved = 0
+
+      const isPlaceholder = (name: string) => /^\d/.test(name) || name.includes('/')
 
       for (const dbMatch of dbMatches) {
-        const homeTeam = dbMatch.home_team_resolved || dbMatch.home_team
-        const awayTeam = dbMatch.away_team_resolved || dbMatch.away_team
+        const apiMatch = dbMatch.match_number
+          ? apiMatches.find(am => am.num === dbMatch.match_number)
+          : apiMatches.find(am => {
+              const homeTeam = dbMatch.home_team_resolved || dbMatch.home_team
+              const awayTeam = dbMatch.away_team_resolved || dbMatch.away_team
+              return am.team1 === homeTeam && am.team2 === awayTeam
+            })
 
-        // Skip knockout matches with unresolved teams
-        if (dbMatch.stage !== 'group' && (!dbMatch.home_team_resolved || !dbMatch.away_team_resolved)) {
-          continue
+        if (!apiMatch) continue
+
+        // Resolve team names for knockout matches
+        if (dbMatch.stage !== 'group') {
+          const updates: Record<string, string> = {}
+          if (!dbMatch.home_team_resolved && !isPlaceholder(apiMatch.team1)) {
+            updates.home_team_resolved = apiMatch.team1
+          }
+          if (!dbMatch.away_team_resolved && !isPlaceholder(apiMatch.team2)) {
+            updates.away_team_resolved = apiMatch.team2
+          }
+          if (Object.keys(updates).length > 0) {
+            const { error } = await supabase
+              .from('matches')
+              .update(updates)
+              .eq('id', dbMatch.id)
+            if (!error) {
+              resolved++
+              log.push(`Resolved: ${updates.home_team_resolved || dbMatch.home_team} vs ${updates.away_team_resolved || dbMatch.away_team}`)
+              setMatches(prev =>
+                prev.map(m => m.id === dbMatch.id ? { ...m, ...updates } : m)
+              )
+            }
+          }
         }
 
-        const apiMatch = apiMatches.find(am =>
-          am.team1 === homeTeam && am.team2 === awayTeam && am.score?.ft
-        )
-
-        if (!apiMatch || !apiMatch.score?.ft) continue
+        // Update score if available
+        if (!apiMatch.score?.ft) continue
 
         const [homeScore, awayScore] = apiMatch.score.ft
+        const homeTeam = dbMatch.home_team_resolved || apiMatch.team1
+        const awayTeam = dbMatch.away_team_resolved || apiMatch.team2
         let result: MatchResult
         if (homeScore > awayScore) result = 'home'
         else if (awayScore > homeScore) result = 'away'
@@ -133,7 +161,9 @@ export default function Admin() {
 
       if (updated > 0) {
         await supabase.rpc('resolve_knockout_teams')
-        log.push(`Updated ${updated} match(es). Knockout teams resolved.`)
+      }
+      if (updated > 0 || resolved > 0) {
+        log.push(`Updated ${updated} result(s), resolved ${resolved} team(s).`)
       } else {
         log.push('No new results found')
       }

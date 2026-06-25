@@ -30,6 +30,7 @@ export default function GroupDetail() {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/immutability
     if (groupId) loadData()
   }, [groupId])
 
@@ -82,6 +83,7 @@ export default function GroupDetail() {
 
       if (preds) {
         const grouped: Record<number, GroupPrediction[]> = {}
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         for (const p of preds as any[]) {
           if (!grouped[p.match_id]) grouped[p.match_id] = []
           grouped[p.match_id].push({
@@ -130,8 +132,6 @@ export default function GroupDetail() {
     const matchDate = new Date(match.match_date)
     const deadlinePassed = isDeadlinePassed(match.stage)
     const matchPreds = predictions[match.id] || []
-    const isKnockout = match.stage !== 'group'
-    const isTBD = isKnockout && (!match.home_team_resolved || !match.away_team_resolved)
     const hasResult = match.is_completed && match.home_score != null && match.away_score != null
 
     return (
@@ -166,9 +166,7 @@ export default function GroupDetail() {
           </div>
         </div>
 
-        {isTBD ? (
-          <p className="text-xs text-slate-500 italic text-center">Teams TBD</p>
-        ) : !deadlinePassed ? (
+        {!deadlinePassed ? (
           <p className="text-xs text-slate-500 italic text-center">Predictions hidden until deadline</p>
         ) : matchPreds.length === 0 ? (
           <p className="text-xs text-slate-500 italic text-center">No predictions</p>
