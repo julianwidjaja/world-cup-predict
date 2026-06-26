@@ -1,7 +1,7 @@
 import { useEffect, useState, useRef } from 'react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
-import { STAGE_LABELS, STAGE_ORDER, getFlag } from '../lib/constants'
+import { STAGE_LABELS, STAGE_ORDER, getFlag, TEAMS_2026 } from '../lib/constants'
 import type { Match, MatchResult, Stage } from '../lib/types'
 
 const DATA_URL = 'https://raw.githubusercontent.com/openfootball/worldcup.json/master/2026/worldcup.json'
@@ -348,7 +348,6 @@ export default function Admin() {
             const homeTeam = match.home_team_resolved || match.home_team
             const awayTeam = match.away_team_resolved || match.away_team
             const isKnockout = match.stage !== 'group'
-            const needsResolution = isKnockout && (!match.home_team_resolved || !match.away_team_resolved)
 
             return (
               <div key={match.id} className="bg-slate-800 rounded-xl p-4">
@@ -378,7 +377,7 @@ export default function Admin() {
                   </span>
                 </div>
 
-                {!needsResolution && !match.is_completed && (
+                {!match.is_completed && (
                   <div className="flex items-center justify-center gap-2 mb-3">
                     <span className="text-xs text-slate-400">Score:</span>
                     <input
@@ -409,28 +408,35 @@ export default function Admin() {
                   </div>
                 )}
 
-                {needsResolution ? (
-                  <div className="space-y-2">
-                    <p className="text-xs text-amber-400">Resolve teams:</p>
+                {isKnockout && !match.is_completed && (
+                  <div className="space-y-2 mb-3">
+                    <p className="text-xs text-amber-400">Teams ({match.home_team} vs {match.away_team}):</p>
                     <div className="flex gap-2">
-                      <input
-                        type="text"
-                        placeholder={`Home: ${match.home_team}`}
-                        defaultValue={match.home_team_resolved || ''}
-                        onBlur={e => resolveR32Team(match.id, 'home_team_resolved', e.target.value)}
+                      <select
+                        value={match.home_team_resolved || ''}
+                        onChange={e => resolveR32Team(match.id, 'home_team_resolved', e.target.value)}
                         className="flex-1 px-2 py-1 bg-slate-700 border border-slate-600 rounded text-white text-sm"
-                      />
-                      <input
-                        type="text"
-                        placeholder={`Away: ${match.away_team}`}
-                        defaultValue={match.away_team_resolved || ''}
-                        onBlur={e => resolveR32Team(match.id, 'away_team_resolved', e.target.value)}
+                      >
+                        <option value="">-- {match.home_team} --</option>
+                        {TEAMS_2026.map(t => (
+                          <option key={t} value={t}>{getFlag(t)} {t}</option>
+                        ))}
+                      </select>
+                      <select
+                        value={match.away_team_resolved || ''}
+                        onChange={e => resolveR32Team(match.id, 'away_team_resolved', e.target.value)}
                         className="flex-1 px-2 py-1 bg-slate-700 border border-slate-600 rounded text-white text-sm"
-                      />
+                      >
+                        <option value="">-- {match.away_team} --</option>
+                        {TEAMS_2026.map(t => (
+                          <option key={t} value={t}>{getFlag(t)} {t}</option>
+                        ))}
+                      </select>
                     </div>
                   </div>
-                ) : (
-                  <div className="flex gap-1.5">
+                )}
+
+                <div className="flex gap-1.5">
                     <button
                       onClick={() => setResult(match.id, 'home')}
                       disabled={saving === match.id}
@@ -467,7 +473,6 @@ export default function Admin() {
                       {awayTeam} wins
                     </button>
                   </div>
-                )}
               </div>
             )
           })

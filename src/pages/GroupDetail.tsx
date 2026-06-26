@@ -32,6 +32,7 @@ export default function GroupDetail() {
   useEffect(() => {
     // eslint-disable-next-line react-hooks/immutability
     if (groupId) loadData()
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [groupId])
 
   async function loadData() {

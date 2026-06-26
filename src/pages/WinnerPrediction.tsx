@@ -1,20 +1,7 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
-import { getFlag } from '../lib/constants'
-
-const TEAMS_2026 = [
-  'Algeria', 'Argentina', 'Australia', 'Austria', 'Belgium',
-  'Bosnia & Herzegovina', 'Brazil', 'Canada', 'Cape Verde', 'Colombia',
-  'Croatia', 'Curaçao', 'Czech Republic', 'DR Congo', 'Ecuador',
-  'Egypt', 'England', 'France', 'Germany', 'Ghana',
-  'Haiti', 'Iran', 'Iraq', 'Ivory Coast', 'Japan',
-  'Jordan', 'Mexico', 'Morocco', 'Netherlands', 'New Zealand',
-  'Norway', 'Panama', 'Paraguay', 'Portugal', 'Qatar',
-  'Saudi Arabia', 'Scotland', 'Senegal', 'South Africa', 'South Korea',
-  'Spain', 'Sweden', 'Switzerland', 'Tunisia', 'Turkey',
-  'Uruguay', 'USA', 'Uzbekistan',
-].sort()
+import { getFlag, TEAMS_2026 } from '../lib/constants'
 
 export default function WinnerPrediction() {
   const { user } = useAuth()
