@@ -250,6 +250,50 @@ export default function Admin() {
     }
   }
 
+  function getPossibleTeams(placeholder: string): string[] {
+    // W75, L101 → teams from that match number
+    const matchRef = placeholder.match(/^[WL](\d+)$/)
+    if (matchRef) {
+      const num = parseInt(matchRef[1])
+      const refMatch = matches.find(m => m.match_number === num)
+      if (refMatch) {
+        const teams: string[] = []
+        const home = refMatch.home_team_resolved || refMatch.home_team
+        const away = refMatch.away_team_resolved || refMatch.away_team
+        if (home && !/^\d/.test(home) && !home.includes('/')) teams.push(home)
+        if (away && !/^\d/.test(away) && !away.includes('/')) teams.push(away)
+        return teams.sort()
+      }
+    }
+    // 1F, 2F → teams in that group
+    const groupPos = placeholder.match(/^[12]([A-L])$/)
+    if (groupPos) {
+      const groupLabel = groupPos[1]
+      const groupTeams = new Set<string>()
+      for (const m of matches) {
+        if (m.stage === 'group' && m.group_label === groupLabel) {
+          groupTeams.add(m.home_team)
+          groupTeams.add(m.away_team)
+        }
+      }
+      return [...groupTeams].sort()
+    }
+    // 3A/B/C/D/F → teams from those groups
+    const thirdPlace = placeholder.match(/^3([A-L](?:\/[A-L])*)$/)
+    if (thirdPlace) {
+      const groups = thirdPlace[1].split('/')
+      const groupTeams = new Set<string>()
+      for (const m of matches) {
+        if (m.stage === 'group' && groups.includes(m.group_label || '')) {
+          groupTeams.add(m.home_team)
+          groupTeams.add(m.away_team)
+        }
+      }
+      return [...groupTeams].sort()
+    }
+    return TEAMS_2026
+  }
+
   if (!profile?.is_admin) {
     return (
       <div className="flex items-center justify-center py-20">
@@ -418,7 +462,7 @@ export default function Admin() {
                         className="flex-1 px-2 py-1 bg-slate-700 border border-slate-600 rounded text-white text-sm"
                       >
                         <option value="">-- {match.home_team} --</option>
-                        {TEAMS_2026.map(t => (
+                        {getPossibleTeams(match.home_team).map(t => (
                           <option key={t} value={t}>{getFlag(t)} {t}</option>
                         ))}
                       </select>
@@ -428,7 +472,7 @@ export default function Admin() {
                         className="flex-1 px-2 py-1 bg-slate-700 border border-slate-600 rounded text-white text-sm"
                       >
                         <option value="">-- {match.away_team} --</option>
-                        {TEAMS_2026.map(t => (
+                        {getPossibleTeams(match.away_team).map(t => (
                           <option key={t} value={t}>{getFlag(t)} {t}</option>
                         ))}
                       </select>
